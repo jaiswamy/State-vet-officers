@@ -1,0 +1,64 @@
+version: '2.4'
+services:
+  db:
+    image: mysql:5.6
+    container_name: svetofficersdb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql123
+      MYSQL_DATABASE: db_vetofficers
+      MYSQL_USER: statejob
+      MYSQL_PASSWORD: StateJob@HitpL2022
+    ports:
+      - "3313:3306"
+    volumes:
+     - ./Dump20250626.sql:/docker-entrypoint-initdb.d/Dump20250626.sql
+     - ./mysql/data:/var/lib/mysql
+     - ./mysql/conf.d:/etc/mysql/conf.d
+    networks:
+      - tomcat-network-sofficers
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -u root -pmysql123 -e 'SELECT 1'"]
+      interval: 10s
+      retries: 10
+      start_period: 40s
+
+
+  tomcat:
+    build:
+      context: .
+    image: svetofficersimage:latest
+    container_name: svetofficersapp
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 1024m
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_DB: db_vetofficers
+      MYSQL_USER: statejob
+      MYSQL_PASSWORD: StateJob@HitpL2022
+    ports:
+      - "9099:8080"
+    networks:
+      - tomcat-network-sofficers
+
+  httpd:
+    image: httpd:2.4
+    container_name: statehttpd
+    restart: always
+    ports:
+      - "90:80"
+    volumes:
+      - ./httpd/conf:/usr/local/apache2/conf.d
+    depends_on:
+      - tomcat
+    networks:
+      - tomcat-network-sofficers
+
+
+networks:
+  tomcat-network-sofficers:
+    driver: bridge
